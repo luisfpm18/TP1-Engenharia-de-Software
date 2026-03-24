@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select # Importe o Session e o select
 from database import engine
 from models import Paciente
+from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados 
 
 # 2. Criamos uma função "lifespan" (tempo de vida)
 @asynccontextmanager
@@ -41,3 +42,19 @@ def cadastrar_paciente(paciente: Paciente):
         session.refresh(paciente)
         
         return paciente
+
+# Configuração do CORS para permitir conexões do frontend
+# 1. Lista de quem pode "falar" com o seu backend (seu frontend React)
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# 2. Adiciona a permissão oficial
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # Permite todos os verbos (GET, POST, etc)
+    allow_headers=["*"], # Permite todos os cabeçalhos
+)
