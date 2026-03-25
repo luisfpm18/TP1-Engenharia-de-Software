@@ -1,5 +1,6 @@
-from fastapi import FastAPI
-from contextlib import asynccontextmanager # 1. Importe isso
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
+from contextlib import asynccontextmanager #Importa o asynccontextmanager para criar a função de lifespan
 from sqlmodel import SQLModel
 from database import engine
 import models # Garante que os modelos sejam lidos
@@ -10,7 +11,7 @@ from models import Paciente
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
 from typing import List
 
-# 2. Criamos uma função "lifespan" (tempo de vida)
+# Criamos uma função "lifespan" (tempo de vida)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tudo antes do 'yield' acontece no STARTUP (ao ligar)
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
     yield
     # Tudo depois do 'yield' acontece no SHUTDOWN (ao desligar)
 
-# 3. Passamos o lifespan para o FastAPI
+# Passamos o lifespan para o FastAPI
 app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
@@ -50,6 +51,22 @@ def listar_pacientes():
         # Pede ao banco de dados todos os registros da tabela Paciente
         pacientes = session.exec(select(Paciente)).all()
         return pacientes
+
+@app.delete("/pacientes/{paciente_id}")
+def excluir_paciente(paciente_id: int):
+    with Session(engine) as session:
+        # Busca o paciente no banco pelo ID
+        paciente = session.get(Paciente, paciente_id)
+        
+        # Se o paciente não existir, avisa que deu erro 404
+        if not paciente:
+            raise HTTPException(status_code=404, detail="Paciente não encontrado")
+        
+        # Se existir, deleta e salva a alteração no banco
+        session.delete(paciente)
+        session.commit()
+        return {"message": "Paciente excluído com sucesso"}
+
 
 # Configuração do CORS para permitir conexões do frontend
 # 1. Lista de quem pode "falar" com o seu backend (seu frontend React)
