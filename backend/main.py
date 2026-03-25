@@ -7,7 +7,8 @@ from fastapi import HTTPException
 from sqlmodel import Session, select # Importe o Session e o select
 from database import engine
 from models import Paciente
-from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados 
+from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
+from typing import List
 
 # 2. Criamos uma função "lifespan" (tempo de vida)
 @asynccontextmanager
@@ -40,8 +41,15 @@ def cadastrar_paciente(paciente: Paciente):
             
         # 3. Atualizar: Pega o ID que o banco gerou e coloca de volta no objeto
         session.refresh(paciente)
-        
+       
         return paciente
+
+@app.get("/pacientes/", response_model=List[Paciente])
+def listar_pacientes():
+    with Session(engine) as session:
+        # Pede ao banco de dados todos os registros da tabela Paciente
+        pacientes = session.exec(select(Paciente)).all()
+        return pacientes
 
 # Configuração do CORS para permitir conexões do frontend
 # 1. Lista de quem pode "falar" com o seu backend (seu frontend React)
