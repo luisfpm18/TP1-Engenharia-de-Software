@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import axios from 'axios'
 
 interface Paciente {
@@ -12,35 +12,29 @@ function App() {
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [erro, setErro] = useState("")
 
-  // 1. Estados para o formulário (o que a dentista digita)
   const [nome, setNome] = useState("")
   const [cpf, setCpf] = useState("")
   const [telefone, setTelefone] = useState("")
 
-  // Função para buscar a lista atualizada
   const buscarPacientes = () => {
     axios.get('http://localhost:8000/pacientes/')
       .then(response => setPacientes(response.data))
       .catch(error => setErro("Não foi possível carregar a lista."))
   }
 
-  // Busca os pacientes assim que a tela abre
   useEffect(() => {
     buscarPacientes()
   }, [])
 
-  // 2. Função que roda quando a dentista clica em "Salvar"
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault() // Impede a página de piscar/recarregar
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
 
-    // Dispara o POST para o servidor Python
     axios.post('http://localhost:8000/pacientes/', {
       nome: nome,
       cpf: cpf,
       telefone: telefone
     })
     .then(() => {
-      // Se deu certo: limpa os campos e busca a lista atualizada
       setNome("")
       setCpf("")
       setTelefone("")
@@ -52,12 +46,26 @@ function App() {
     })
   }
 
-  // 3. O visual (Formulário no topo, lista embaixo)
+  // NOVA FUNÇÃO: Acionada quando clica no botão Excluir
+  const handleDelete = (id: number) => {
+    // Um aviso para a dentista não apagar sem querer
+    if (window.confirm("Tem certeza que deseja excluir este paciente?")) {
+      axios.delete(`http://localhost:8000/pacientes/${id}`)
+        .then(() => {
+          // Se o backend apagou com sucesso, busca a lista nova
+          buscarPacientes()
+        })
+        .catch(error => {
+          console.error("Erro ao excluir:", error)
+          alert("Erro ao excluir o paciente.")
+        })
+    }
+  }
+
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
       <h1>Prontuário Odontológico</h1>
       
-      {/* SEÇÃO DO FORMULÁRIO */}
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
         <h2>Novo Paciente</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -82,7 +90,6 @@ function App() {
         </form>
       </div>
 
-      {/* SEÇÃO DA LISTA (Que já tínhamos feito) */}
       <h2>Pacientes Cadastrados</h2>
       {erro && <p style={{ color: 'red' }}>{erro}</p>}
       
@@ -91,10 +98,20 @@ function App() {
       ) : (
         <ul style={{ listStyleType: 'none', padding: 0 }}>
           {pacientes.map(paciente => (
-            <li key={paciente.id} style={{ border: '1px solid #eee', margin: '10px 0', padding: '15px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-              <strong>Nome:</strong> {paciente.nome} <br />
-              <strong>CPF:</strong> {paciente.cpf} <br />
-              <strong>Telefone:</strong> {paciente.telefone}
+            // Flexbox para colocar as infos na esquerda e o botão na direita
+            <li key={paciente.id} style={{ border: '1px solid #eee', margin: '10px 0', padding: '15px', borderRadius: '8px', backgroundColor: '#f9f9f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong>Nome:</strong> {paciente.nome} <br />
+                <strong>CPF:</strong> {paciente.cpf} <br />
+                <strong>Telefone:</strong> {paciente.telefone}
+              </div>
+              {/* NOVO BOTÃO DE EXCLUIR */}
+              <button 
+                onClick={() => handleDelete(paciente.id)} 
+                style={{ padding: '8px 12px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Excluir
+              </button>
             </li>
           ))}
         </ul>
