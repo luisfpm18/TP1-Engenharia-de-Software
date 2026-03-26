@@ -10,7 +10,7 @@
 
 
 ### Objetivo do sistema:
-O sistema consiste em um prontuário odontológico digital desenvolvido para otimizar a gestão de consultórios. Ele visa substituir registros físicos por uma plataforma web que centraliza dados pessoais, anamneses e o histórico clínico dos pacientes. Além disso, o software gerencia o fluxo financeiro de pagamentos e o planejamento de tratamentos, permitindo o registro de procedimentos realizados e a organização das próximas consultas, garantindo maior agilidade e segurança na administração dos atendimentos.
+O sistema consiste em um prontuário odontológico digital desenvolvido para otimizar a gestão de consultórios. Ele visa substituir registros físicos por uma plataforma digital que centraliza dados pessoais, anamneses e o histórico clínico dos pacientes. Além disso, o software gerencia o fluxo financeiro de pagamentos e o planejamento de tratamentos, permitindo o registro de procedimentos realizados e a organização das próximas consultas, garantindo maior agilidade e segurança na administração dos atendimentos.
 
 
 ### Tecnologias a serem utilizadas:
