@@ -1,3 +1,4 @@
+from pydantic import BaseModel #Usado para avisar o formato dos dados que vão chegar para a edição dos pacientes 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
 from contextlib import asynccontextmanager #Importa o asynccontextmanager para criar a função de lifespan
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
 # Passamos o lifespan para o FastAPI
 app = FastAPI(lifespan=lifespan)
 
+#Foi só teste para ver se funcionava a conexão, pode ser apagado depois
 @app.get("/")
 def root():
     return {"message": "Sistema Odontológico Online"}
@@ -45,13 +47,15 @@ def cadastrar_paciente(paciente: Paciente):
        
         return paciente
 
+# Rota GET para listar todos os pacientes
 @app.get("/pacientes/", response_model=List[Paciente])
 def listar_pacientes():
     with Session(engine) as session:
         # Pede ao banco de dados todos os registros da tabela Paciente
-        pacientes = session.exec(select(Paciente)).all()
+        pacientes = session.exec(select(Paciente).order_by(Paciente.id)).all() #adiciono a ordenação por ID (aparece do mais antigo para o mais novo)
         return pacientes
 
+# Rota DELETE para excluir um paciente pelo ID
 @app.delete("/pacientes/{paciente_id}")
 def excluir_paciente(paciente_id: int):
     with Session(engine) as session:
@@ -83,3 +87,30 @@ app.add_middleware(
     allow_methods=["*"], # Permite todos os verbos (GET, POST, etc)
     allow_headers=["*"], # Permite todos os cabeçalhos
 )
+
+# Definimos o que o backend espera receber quando for atualizar
+class PacienteUpdate(BaseModel):
+    nome: str
+    cpf: str
+    telefone: str
+    
+# Rota PUT para atualizar o paciente
+@app.put("/pacientes/{paciente_id}")
+def atualizar_paciente(paciente_id: int, paciente_atualizado: PacienteUpdate):
+    with Session(engine) as session:
+        # 1. Procura o paciente antigo
+        paciente_db = session.get(Paciente, paciente_id)
+        
+        if not paciente_db:
+            raise HTTPException(status_code=404, detail="Paciente não encontrado")
+        
+        # 2. Substitui os dados velhos pelos novos
+        paciente_db.nome = paciente_atualizado.nome
+        paciente_db.cpf = paciente_atualizado.cpf
+        paciente_db.telefone = paciente_atualizado.telefone
+        
+        # 3. Salva no banco
+        session.add(paciente_db)
+        session.commit()
+        session.refresh(paciente_db)
+        return paciente_db
