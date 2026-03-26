@@ -1,3 +1,4 @@
+import re
 from pydantic import BaseModel #Usado para avisar o formato dos dados que vão chegar para a edição dos pacientes 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
@@ -28,23 +29,25 @@ app = FastAPI(lifespan=lifespan)
 def root():
     return {"message": "Sistema Odontológico Online"}
 
-@app.post("/pacientes/", response_model=Paciente)
-def cadastrar_paciente(paciente: Paciente):
+# --- ROTA POST (CRIAR) ---
+@app.post("/pacientes/")
+def criar_paciente(paciente: Paciente):
+    # 1. Limpa os dados (deixa só números)
+    cpf_limpo = re.sub(r'[^0-9]', '', paciente.cpf)
+    telefone_limpo = re.sub(r'[^0-9]', '', paciente.telefone)
+    
+    # 2. Valida o tamanho do CPF
+    if len(cpf_limpo) != 11:
+        raise HTTPException(status_code=400, detail="O CPF deve conter exatamente 11 números.")
+    
     with Session(engine) as session:
-        # 1. Preparar: Coloca o objeto na "mesa de trabalho"
-        session.add(paciente) 
+        # Substitui os dados pelos limpos antes de salvar
+        paciente.cpf = cpf_limpo
+        paciente.telefone = telefone_limpo
         
-        # 2. Persistir: Salva definitivamente no PostgreSQL
-        try:
-            session.commit()
-        except Exception as e:
-            # Se der erro (ex: CPF duplicado), desfaz a bagunça
-            session.rollback()
-            raise HTTPException(status_code=400, detail="Erro ao salvar: CPF já existe ou dados inválidos.")
-            
-        # 3. Atualizar: Pega o ID que o banco gerou e coloca de volta no objeto
+        session.add(paciente)
+        session.commit()
         session.refresh(paciente)
-       
         return paciente
 
 # Rota GET para listar todos os pacientes
@@ -94,22 +97,27 @@ class PacienteUpdate(BaseModel):
     cpf: str
     telefone: str
     
-# Rota PUT para atualizar o paciente
+# --- ROTA PUT (EDITAR) ---
 @app.put("/pacientes/{paciente_id}")
 def atualizar_paciente(paciente_id: int, paciente_atualizado: PacienteUpdate):
+    # 1. Limpa os dados (deixa só números)
+    cpf_limpo = re.sub(r'[^0-9]', '', paciente_atualizado.cpf)
+    telefone_limpo = re.sub(r'[^0-9]', '', paciente_atualizado.telefone)
+    
+    # 2. Valida o tamanho do CPF
+    if len(cpf_limpo) != 11:
+        raise HTTPException(status_code=400, detail="O CPF deve conter exatamente 11 números.")
+
     with Session(engine) as session:
-        # 1. Procura o paciente antigo
         paciente_db = session.get(Paciente, paciente_id)
-        
         if not paciente_db:
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
         
-        # 2. Substitui os dados velhos pelos novos
+        # 3. Substitui pelos dados limpos
         paciente_db.nome = paciente_atualizado.nome
-        paciente_db.cpf = paciente_atualizado.cpf
-        paciente_db.telefone = paciente_atualizado.telefone
+        paciente_db.cpf = cpf_limpo
+        paciente_db.telefone = telefone_limpo
         
-        # 3. Salva no banco
         session.add(paciente_db)
         session.commit()
         session.refresh(paciente_db)
