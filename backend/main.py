@@ -5,11 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar
 from contextlib import asynccontextmanager #Importa o asynccontextmanager para criar a função de lifespan
 from sqlmodel import SQLModel
 from database import engine
-import models # Garante que os modelos sejam lidos
 from fastapi import HTTPException
 from sqlmodel import Session, select # Importe o Session e o select
 from database import engine
-from models import Paciente
+from models import Paciente, FichaClinica # Importe os modelos de dados
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
 from typing import List
 
@@ -122,3 +121,52 @@ def atualizar_paciente(paciente_id: int, paciente_atualizado: PacienteUpdate):
         session.commit()
         session.refresh(paciente_db)
         return paciente_db
+    
+
+#===================================================
+# ROTAS PARA A FICHA CLÍNICA (NOVO MODELO DE DADOS)
+#===================================================
+
+# --- ADICIONE ISTO NO FINAL DO ARQUIVO ---
+
+# Rota para BUSCAR a ficha de um paciente específico
+@app.get("/pacientes/{paciente_id}/ficha", response_model=FichaClinica)
+def ler_ficha(paciente_id: int):
+    with Session(engine) as session:
+        # Pede ao banco a ficha cujo cordão umbilical (paciente_id) seja igual ao ID da URL
+        ficha = session.exec(select(FichaClinica).where(FichaClinica.paciente_id == paciente_id)).first()
+        
+        if not ficha:
+            raise HTTPException(status_code=404, detail="Ficha clínica não encontrada para este paciente.")
+        return ficha
+
+# Rota inteligente para SALVAR ou ATUALIZAR a ficha
+@app.post("/pacientes/{paciente_id}/ficha")
+def salvar_ficha(paciente_id: int, dados_ficha: FichaClinica):
+    with Session(engine) as session:
+        # 1. Checa se o paciente existe antes de criar uma ficha pra ele
+        paciente = session.get(Paciente, paciente_id)
+        if not paciente:
+            raise HTTPException(status_code=404, detail="Paciente não encontrado.")
+
+        # 2. Checa se o paciente já tem uma ficha
+        ficha_existente = session.exec(select(FichaClinica).where(FichaClinica.paciente_id == paciente_id)).first()
+
+        if ficha_existente:
+            # Se já tem ficha, nós apenas atualizamos os dados dela (como um PUT embutido)
+            ficha_existente.queixa_principal = dados_ficha.queixa_principal
+            ficha_existente.tratamento_medico = dados_ficha.tratamento_medico
+            ficha_existente.disturbios_cardiovasculares = dados_ficha.disturbios_cardiovasculares
+            ficha_existente.diabetico = dados_ficha.diabetico
+            ficha_existente.gravida = dados_ficha.gravida
+            ficha_existente.medicamentos = dados_ficha.medicamentos
+            ficha_existente.alergias = dados_ficha.alergias
+            ficha_existente.observacoes = dados_ficha.observacoes
+            session.add(ficha_existente)
+        else:
+            # Se não tem, cria uma nova e força o cordão umbilical a se conectar ao paciente
+            dados_ficha.paciente_id = paciente_id
+            session.add(dados_ficha)
+
+        session.commit()
+        return {"message": "Ficha clínica salva com sucesso"}
