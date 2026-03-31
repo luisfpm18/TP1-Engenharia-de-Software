@@ -8,7 +8,7 @@ from database import engine
 from fastapi import HTTPException
 from sqlmodel import Session, select # Importe o Session e o select
 from database import engine
-from models import Paciente, FichaClinica # Importe os modelos de dados
+from models import Paciente, PacienteCreate, PacienteUpdate, FichaClinica # Importe os modelos de dados
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
 from typing import List
 
@@ -28,26 +28,35 @@ app = FastAPI(lifespan=lifespan)
 def root():
     return {"message": "Sistema Odontológico Online"}
 
-# --- ROTA POST (CRIAR) ---
-@app.post("/pacientes/")
-def criar_paciente(paciente: Paciente):
-    # 1. Limpa os dados (deixa só números)
+# --- ROTA POST (CRIAR PACIENTE) --- AMPLIAÇÃO
+@app.post("/pacientes/", response_model=Paciente)
+def criar_paciente(paciente: PacienteCreate):
+    # Faxina dos dados (só números no CPF e Tel)
     cpf_limpo = re.sub(r'[^0-9]', '', paciente.cpf)
     telefone_limpo = re.sub(r'[^0-9]', '', paciente.telefone)
     
-    # 2. Valida o tamanho do CPF
+    # Validação do CPF
     if len(cpf_limpo) != 11:
         raise HTTPException(status_code=400, detail="O CPF deve conter exatamente 11 números.")
     
+    # Criamos o objeto final para o banco com os dados limpos
+    paciente_db = Paciente(
+        nome=paciente.nome,
+        cpf=cpf_limpo,
+        rg=paciente.rg,
+        data_nascimento=paciente.data_nascimento,
+        telefone=telefone_limpo,
+        endereco=paciente.endereco,
+    )
+    
     with Session(engine) as session:
-        # Substitui os dados pelos limpos antes de salvar
-        paciente.cpf = cpf_limpo
-        paciente.telefone = telefone_limpo
-        
-        session.add(paciente)
-        session.commit()
-        session.refresh(paciente)
-        return paciente
+        session.add(paciente_db)
+        try:
+            session.commit()
+            session.refresh(paciente_db)
+            return paciente_db
+        except Exception:
+            raise HTTPException(status_code=400, detail="CPF já cadastrado.")
 
 # Rota GET para listar todos os pacientes
 @app.get("/pacientes/", response_model=List[Paciente])
@@ -89,33 +98,29 @@ app.add_middleware(
     allow_methods=["*"], # Permite todos os verbos (GET, POST, etc)
     allow_headers=["*"], # Permite todos os cabeçalhos
 )
-
-# Definimos o que o backend espera receber quando for atualizar
-class PacienteUpdate(BaseModel):
-    nome: str
-    cpf: str
-    telefone: str
     
-# --- ROTA PUT (EDITAR) ---
-@app.put("/pacientes/{paciente_id}")
-def atualizar_paciente(paciente_id: int, paciente_atualizado: PacienteUpdate):
-    # 1. Limpa os dados (deixa só números)
-    cpf_limpo = re.sub(r'[^0-9]', '', paciente_atualizado.cpf)
-    telefone_limpo = re.sub(r'[^0-9]', '', paciente_atualizado.telefone)
-    
-    # 2. Valida o tamanho do CPF
-    if len(cpf_limpo) != 11:
-        raise HTTPException(status_code=400, detail="O CPF deve conter exatamente 11 números.")
-
+# --- ROTA PUT (EDITAR PACIENTE) --- AMPLIAÇÃO
+@app.put("/pacientes/{paciente_id}", response_model=Paciente)
+def atualizar_paciente(paciente_id: int, paciente_update: PacienteUpdate):
     with Session(engine) as session:
         paciente_db = session.get(Paciente, paciente_id)
         if not paciente_db:
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
         
-        # 3. Substitui pelos dados limpos
-        paciente_db.nome = paciente_atualizado.nome
-        paciente_db.cpf = cpf_limpo
-        paciente_db.telefone = telefone_limpo
+        # Fazemos a faxina dos dados SE eles foram enviados
+        if paciente_update.cpf:
+            cpf_limpo = re.sub(r'[^0-9]', '', paciente_update.cpf)
+            if len(cpf_limpo) != 11: raise HTTPException(status_code=400, detail="CPF inválido.")
+            paciente_db.cpf = cpf_limpo
+
+        if paciente_update.telefone:
+            paciente_db.telefone = re.sub(r'[^0-9]', '', paciente_update.telefone)
+
+        # Atualizamos os outros campos normais
+        if paciente_update.nome: paciente_db.nome = paciente_update.nome
+        if paciente_update.rg: paciente_db.rg = paciente_update.rg
+        if paciente_update.data_nascimento: paciente_db.data_nascimento = paciente_update.data_nascimento
+        if paciente_update.endereco: paciente_db.endereco = paciente_update.endereco
         
         session.add(paciente_db)
         session.commit()
@@ -156,12 +161,17 @@ def salvar_ficha(paciente_id: int, dados_ficha: FichaClinica):
             # Se já tem ficha, nós apenas atualizamos os dados dela (como um PUT embutido)
             ficha_existente.queixa_principal = dados_ficha.queixa_principal
             ficha_existente.tratamento_medico = dados_ficha.tratamento_medico
-            ficha_existente.disturbios_cardiovasculares = dados_ficha.disturbios_cardiovasculares
             ficha_existente.diabetico = dados_ficha.diabetico
             ficha_existente.gravida = dados_ficha.gravida
-            ficha_existente.medicamentos = dados_ficha.medicamentos
             ficha_existente.alergias = dados_ficha.alergias
-            ficha_existente.observacoes = dados_ficha.observacoes
+            ficha_existente.medicamentos_em_uso = dados_ficha.medicamentos_em_uso
+            ficha_existente.sistema_cardiovascular = dados_ficha.sistema_cardiovascular
+            ficha_existente.sistema_respiratorio = dados_ficha.sistema_respiratorio
+            ficha_existente.sistema_sanguineo_linfatico = dados_ficha.sistema_sanguineo_linfatico
+            ficha_existente.sistema_gastrointestinal = dados_ficha.sistema_gastrointestinal
+            ficha_existente.sistema_nervoso = dados_ficha.sistema_nervoso
+            ficha_existente.sistema_urinario_endocrino = dados_ficha.sistema_urinario_endocrino
+            ficha_existente.observacoes_adicionais = dados_ficha.observacoes_adicionais
             session.add(ficha_existente)
         else:
             # Se não tem, cria uma nova e força o cordão umbilical a se conectar ao paciente
