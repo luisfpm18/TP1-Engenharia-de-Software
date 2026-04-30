@@ -114,6 +114,14 @@ interface FichaClinica {
   observacoes_adicionais: string;
 }
 
+interface Pagamento {
+  id?: number;
+  valor: number;
+  data_pagamento: string;
+  descricao: string;
+  forma_pagamento: string;
+}
+
 // ==========================================
 // 4. COMPONENTE PRINCIPAL
 // ==========================================
@@ -141,6 +149,14 @@ function App() {
     sistema_gastrointestinal: "", sistema_nervoso: "", sistema_urinario_endocrino: "",
     observacoes_adicionais: ""
   })
+
+  // Estados Financeiro
+  const [pacienteFinanceiroAberto, setPacienteFinanceiroAberto] = useState<Paciente | null>(null)
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([])
+  const [valorPagamento, setValorPagamento] = useState("")
+  const [dataPagamento, setDataPagamento] = useState("")
+  const [descricaoPagamento, setDescricaoPagamento] = useState("")
+  const [formaPagamento, setFormaPagamento] = useState("")
 
   const buscarPacientes = () => {
     axios.get('http://localhost:8000/pacientes/')
@@ -301,6 +317,128 @@ function App() {
 
   const atualizarCampoFicha = (campo: keyof FichaClinica, valor: any) => {
     setFicha(prev => ({ ...prev, [campo]: valor }))
+  }
+
+  // ==========================================
+  // Funções do Financeiro
+  // ==========================================
+  const abrirFinanceiro = (paciente: Paciente) => {
+    setPacienteFinanceiroAberto(paciente)
+    axios.get(`http://localhost:8000/pacientes/${paciente.id}/pagamentos`)
+      .then(response => setPagamentos(response.data))
+      .catch(() => alert("Erro ao carregar histórico financeiro."))
+  }
+
+  const fecharFinanceiro = () => {
+    setPacienteFinanceiroAberto(null)
+    setValorPagamento(""); setDataPagamento(""); setDescricaoPagamento(""); setFormaPagamento("");
+  }
+
+  const salvarPagamento = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!pacienteFinanceiroAberto) return
+
+    const payload = {
+      valor: parseFloat(valorPagamento.replace(',', '.')), // Garante que o valor vá como número (ex: 150.00)
+      data_pagamento: dataPagamento,
+      descricao: descricaoPagamento,
+      forma_pagamento: formaPagamento
+    }
+
+    axios.post(`http://localhost:8000/pacientes/${pacienteFinanceiroAberto.id}/pagamentos`, payload)
+      .then(() => {
+        alert("Pagamento registrado com sucesso!")
+        setValorPagamento(""); setDataPagamento(""); setDescricaoPagamento(""); setFormaPagamento("");
+        // Atualiza a lista de pagamentos na tela automaticamente
+        abrirFinanceiro(pacienteFinanceiroAberto) 
+      })
+      .catch(() => alert("Erro ao registrar pagamento."))
+  }
+
+  // ==========================================
+  // RENDERIZAÇÃO: TELA FINANCEIRO
+  // ==========================================
+  if (pacienteFinanceiroAberto) {
+    return (
+      <div style={ESTILO_GERAL}>
+        <div style={ESTILO_CONTAINER}>
+          <div style={{ ...ESTILO_CARD, borderTop: '5px solid #4CAF50' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '25px' }}>
+              <h1 style={{ margin: 0, lineHeight: '1.3' }}>Financeiro: <br/><span style={{ color: '#4CAF50' }}>{pacienteFinanceiroAberto.nome}</span></h1>
+              <button onClick={fecharFinanceiro} style={{ ...ESTILO_BOTAO_BASE, backgroundColor: '#9e9e9e', color: 'white' }}>
+                ← Voltar
+              </button>
+            </div>
+
+            {/* FORMULÁRIO DE NOVO PAGAMENTO */}
+            <div style={{ backgroundColor: '#f9fbe7', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+              <h3 style={{ marginTop: 0, color: '#33691e' }}>Registrar Novo Pagamento</h3>
+              <form onSubmit={salvarPagamento} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={ESTILO_LABEL}>Valor</label>
+                  <input type="number" step="0.01" placeholder="00,00" required value={valorPagamento} onChange={(e) => setValorPagamento(e.target.value)} style={ESTILO_INPUT_BASE} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={ESTILO_LABEL}>Data do Pagamento</label>
+                  <input type="text" placeholder="DD/MM/AAAA" required value={dataPagamento} onChange={(e) => setDataPagamento(formatarData(e.target.value))} style={ESTILO_INPUT_BASE} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={ESTILO_LABEL}>Descrição</label>
+                  <input type="text" placeholder="Limpeza, Manutenção, Tratamento..." required value={descricaoPagamento} onChange={(e) => setDescricaoPagamento(e.target.value)} style={ESTILO_INPUT_BASE} />
+                </div>
+
+                {/* O SEU MENU DROPDOWN DE OPÇÕES AQUI */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={ESTILO_LABEL}>Forma de Pagamento</label>
+                  <select required value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} style={ESTILO_INPUT_BASE}>
+                    <option value="" disabled>Selecione uma opção...</option>
+                    <option value="PIX">PIX</option>
+                    <option value="Débito">Débito</option>
+                    <option value="Crédito">Crédito</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                  </select>
+                </div>
+
+                <button type="submit" style={{ ...ESTILO_BOTAO_BASE, backgroundColor: '#4CAF50', color: 'white', gridColumn: 'span 2' }}>
+                  💰 Registrar Pagamento
+                </button>
+              </form>
+            </div>
+
+            {/* HISTÓRICO DE PAGAMENTOS */}
+            <h3 style={{ marginTop: 0 }}>Histórico de Pagamentos</h3>
+            {pagamentos.length === 0 ? (
+              <p>Nenhum pagamento registrado para este paciente.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: 'black' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#eeeeee', borderBottom: '2px solid #ccc' }}>
+                    <th style={{ padding: '10px' }}>Data</th>
+                    <th style={{ padding: '10px' }}>Descrição</th>
+                    <th style={{ padding: '10px' }}>Forma</th>
+                    <th style={{ padding: '10px' }}>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagamentos.map(pag => (
+                    <tr key={pag.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '10px' }}>{pag.data_pagamento}</td>
+                      <td style={{ padding: '10px' }}>{pag.descricao}</td>
+                      <td style={{ padding: '10px' }}>{pag.forma_pagamento}</td>
+                      <td style={{ padding: '10px', fontWeight: 'bold', color: '#2e7d32' }}>R$ {pag.valor.toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // ==========================================
@@ -470,6 +608,9 @@ function App() {
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={() => abrirFicha(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#673ab7', color: 'white' }}>
                     📝 Ficha Clínica
+                  </button>
+                  <button onClick={() => abrirFinanceiro(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white' }}>
+                    💰 Financeiro
                   </button>
                   <button onClick={() => prepararEdicao(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#2196F3', color: 'white' }}>Editar</button>
                   <button onClick={() => handleDelete(paciente.id)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#f44336', color: 'white' }}>Excluir</button>

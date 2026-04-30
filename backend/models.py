@@ -68,3 +68,25 @@ class FichaClinica(SQLModel, table=True):
     sistema_urinario_endocrino: Optional[str] = None
     historico_familiar_lifestyle: Optional[str] = None
     observacoes_adicionais: Optional[str] = None
+
+# ==========================================
+# 3. MODELOS DO FINANCEIRO (PAGAMENTOS)
+# ==========================================
+class Pagamento(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # Chave Estrangeira: Liga este pagamento a um paciente. 
+    # Diferente da ficha, NÃO tem "unique=True", pois um paciente pode ter VÁRIOS pagamentos.
+    paciente_id: int = Field(foreign_key="paciente.id")
+    
+    valor: float
+    data_pagamento: str # Vamos manter como texto (DD/MM/AAAA) para facilitar com o React
+    descricao: str
+    forma_pagamento: str # Receberá: Pix, Débito, Crédito ou Dinheiro
+
+# Modelo Pydantic para validar os dados chegando do React
+class PagamentoCreate(BaseModel):
+    valor: float
+    data_pagamento: str
+    descricao: str
+    forma_pagamento: str

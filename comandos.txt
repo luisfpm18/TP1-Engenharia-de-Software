@@ -1,3 +1,29 @@
 python3 -m uvicorn main:app --reload   #liga o back
-
 npm run dev.   #liga o front
+
+-
+
+cd projeto-eng
+
+cd backend
+venv\Scripts\activate
+pip install -r requirements.txt
+python -m uvicorn main:app --reload
+http://localhost:8000/docs
+
+cd frontend
+npm run dev
+http://localhost:5173
+
+-
+
+cd projeto-eng
+
+git checkout main
+git pull origin main
+git checkout -b feat-historico-pagamentos, Sem o -b: Você manda o Git apenas navegar para uma branch que já existe.
+git add -A
+git status
+git commit -m "feat: adiciona histórico no back"
+git push origin feat-historico-pagamentos
+no site, Compare & pull request, destino main, escreva o texto, Create pull request

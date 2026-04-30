@@ -8,7 +8,7 @@ from database import engine
 from fastapi import HTTPException
 from sqlmodel import Session, select # Importe o Session e o select
 from database import engine
-from models import Paciente, PacienteCreate, PacienteUpdate, FichaClinica # Importe os modelos de dados
+from models import Paciente, PacienteCreate, PacienteUpdate, FichaClinica, Pagamento, PagamentoCreate # Importe os modelos de dados
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
 from typing import List
 
@@ -180,3 +180,38 @@ def salvar_ficha(paciente_id: int, dados_ficha: FichaClinica):
 
         session.commit()
         return {"message": "Ficha clínica salva com sucesso"}
+    
+#===================================================
+# ROTAS PARA O HISTÓRICO FINANCEIRO (PAGAMENTOS)
+#===================================================
+
+# Rota para CADASTRAR um novo pagamento para o paciente
+@app.post("/pacientes/{paciente_id}/pagamentos", response_model=Pagamento)
+def registrar_pagamento(paciente_id: int, pagamento_in: PagamentoCreate):
+    with Session(engine) as session:
+        # Checa se o paciente existe antes de aceitar o pagamento
+        paciente = session.get(Paciente, paciente_id)
+        if not paciente:
+            raise HTTPException(status_code=404, detail="Paciente não encontrado.")
+
+        # Cria o registro do pagamento e liga o "cordão umbilical" ao paciente
+        novo_pagamento = Pagamento(
+            paciente_id=paciente_id,
+            valor=pagamento_in.valor,
+            data_pagamento=pagamento_in.data_pagamento,
+            descricao=pagamento_in.descricao,
+            forma_pagamento=pagamento_in.forma_pagamento
+        )
+        
+        session.add(novo_pagamento)
+        session.commit()
+        session.refresh(novo_pagamento)
+        return novo_pagamento
+
+# Rota para LISTAR todos os pagamentos de um paciente (Histórico)
+@app.get("/pacientes/{paciente_id}/pagamentos", response_model=List[Pagamento])
+def listar_pagamentos(paciente_id: int):
+    with Session(engine) as session:
+        # Pega todos os pagamentos cujo paciente_id bata com a URL
+        pagamentos = session.exec(select(Pagamento).where(Pagamento.paciente_id == paciente_id)).all()
+        return pagamentos
