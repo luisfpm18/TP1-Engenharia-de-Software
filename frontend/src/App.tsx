@@ -293,6 +293,29 @@ const handleDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     });
   }
 
+  const handleTelefoneComercialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const rawValue = input.value;
+    const cursorPos = input.selectionStart ?? rawValue.length;
+    const digitsBeforeCursor = rawValue.slice(0, cursorPos).replace(/\D/g, '').length;
+    const formatado = formatarTelefone(rawValue);
+    setExtra('telefone_comercial', formatado);
+    window.requestAnimationFrame(() => {
+      if (!input) return;
+      let digitCount = 0;
+      let newCursor = formatado.length;
+      if (digitsBeforeCursor === 0) {
+        newCursor = 0;
+      } else {
+        for (let i = 0; i < formatado.length; i++) {
+          if (/\d/.test(formatado[i])) digitCount++;
+          if (digitCount === digitsBeforeCursor) { newCursor = i + 1; break; }
+        }
+      }
+      input.setSelectionRange(newCursor, newCursor);
+    });
+  }
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErroCpfVisual("")
@@ -1110,7 +1133,7 @@ const handleDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <label style={ESTILO_LABEL}>Telefone</label>
                     <input type="text" placeholder="(DD) 0000-0000" value={dadosExtras.telefone_comercial}
-                      onChange={(e) => setExtra('telefone_comercial', formatarTelefone(e.target.value))} style={ESTILO_INPUT_BASE} />
+                      onChange={handleTelefoneComercialChange} style={ESTILO_INPUT_BASE} />
                   </div>
                 </div>
               </div>
