@@ -14,9 +14,9 @@ O sistema consiste em um prontuário odontológico digital desenvolvido para oti
 
 
 ### Tecnologias a serem utilizadas:
-Frontend: React (JavaScript/TypeScript).
+Frontend: React + TypeScript + Vite + Axios.
 
-Backend: Node.js com Express ou Python com FastAPI.
+Backend: Python com FastAPI.
 
 Banco de Dados: PostgreSQL.
 
