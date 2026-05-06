@@ -5,38 +5,89 @@ from pydantic import BaseModel
 # ==========================================
 # 1. MODELO PACIENTE (TABELA NO BANCO)
 # ==========================================
-# Ampliado para ser o Cadastro Completo do Paciente (Dados Pessoais)
+# Cadastro Completo de Dados Pessoais — espelha o cabeçalho da ficha em papel
 class Paciente(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    
-    # Dados Fundamentais (Profissionais)
+
+    # Identificação
     nome: str
-    cpf: str = Field(unique=True) # CPF não pode repetir
+    cpf: str = Field(unique=True)
     rg: Optional[str] = None
-    data_nascimento: Optional[str] = None # Guardamos como string pra facilitar no frontend
+    data_nascimento: Optional[str] = None
+    sexo: Optional[str] = None
+    naturalidade: Optional[str] = None
+    estado_civil: Optional[str] = None
+    profissao: Optional[str] = None
+
+    # Endereço e contato residencial
     telefone: str
     endereco: Optional[str] = None
-    naturalidade: Optional[str] = None
+    cep: Optional[str] = None
+    cidade: Optional[str] = None
 
-# Modelo para validar os dados na hora de Criar (Pydantic)
+    # Endereço e contato comercial
+    endereco_comercial: Optional[str] = None
+    cep_comercial: Optional[str] = None
+    cidade_comercial: Optional[str] = None
+    telefone_comercial: Optional[str] = None
+
+    # Filiação e indicação
+    nome_pai: Optional[str] = None
+    profissao_pai: Optional[str] = None
+    nome_mae: Optional[str] = None
+    profissao_mae: Optional[str] = None
+    responsavel: Optional[str] = None
+    indicacao: Optional[str] = None
+
+# Pydantic — Criar
 class PacienteCreate(BaseModel):
     nome: str
     cpf: str
     rg: Optional[str] = None
     data_nascimento: Optional[str] = None
+    sexo: Optional[str] = None
+    naturalidade: Optional[str] = None
+    estado_civil: Optional[str] = None
+    profissao: Optional[str] = None
     telefone: str
     endereco: Optional[str] = None
-    naturalidade: Optional[str] = None
+    cep: Optional[str] = None
+    cidade: Optional[str] = None
+    endereco_comercial: Optional[str] = None
+    cep_comercial: Optional[str] = None
+    cidade_comercial: Optional[str] = None
+    telefone_comercial: Optional[str] = None
+    nome_pai: Optional[str] = None
+    profissao_pai: Optional[str] = None
+    nome_mae: Optional[str] = None
+    profissao_mae: Optional[str] = None
+    responsavel: Optional[str] = None
+    indicacao: Optional[str] = None
 
-# Modelo para validar os dados na hora de Atualizar (Pydantic)
+# Pydantic — Atualizar (todos opcionais)
 class PacienteUpdate(BaseModel):
     nome: Optional[str] = None
     cpf: Optional[str] = None
     rg: Optional[str] = None
     data_nascimento: Optional[str] = None
+    sexo: Optional[str] = None
+    naturalidade: Optional[str] = None
+    estado_civil: Optional[str] = None
+    profissao: Optional[str] = None
     telefone: Optional[str] = None
     endereco: Optional[str] = None
-    naturalidade: Optional[str] = None
+    cep: Optional[str] = None
+    cidade: Optional[str] = None
+    endereco_comercial: Optional[str] = None
+    cep_comercial: Optional[str] = None
+    cidade_comercial: Optional[str] = None
+    telefone_comercial: Optional[str] = None
+    nome_pai: Optional[str] = None
+    profissao_pai: Optional[str] = None
+    nome_mae: Optional[str] = None
+    profissao_mae: Optional[str] = None
+    responsavel: Optional[str] = None
+    indicacao: Optional[str] = None
 
 # ==========================================
 # 2. MODELO FICHA CLÍNICA (TABELA NO BANCO)
@@ -67,6 +118,15 @@ class FichaClinica(SQLModel, table=True):
     sistema_nervoso: Optional[str] = None
     sistema_urinario_endocrino: Optional[str] = None
     historico_familiar_lifestyle: Optional[str] = None
+
+    # Itens específicos da ficha-padrão de ortodontia
+    febre_reumatica: bool = Field(default=False)
+    operou_amigdalas: bool = Field(default=False)
+    traumatismo_facial: bool = Field(default=False)
+    tratamento_ortodontico_anterior: bool = Field(default=False)
+    tipo_sanguineo: Optional[str] = None
+    outras_patologias: Optional[str] = None
+
     observacoes_adicionais: Optional[str] = None
 
 # ==========================================
@@ -91,6 +151,13 @@ class PagamentoCreate(BaseModel):
     descricao: str
     forma_pagamento: str
 
+# Modelo Pydantic para edição (todos campos opcionais)
+class PagamentoUpdate(BaseModel):
+    valor: Optional[float] = None
+    data_pagamento: Optional[str] = None
+    descricao: Optional[str] = None
+    forma_pagamento: Optional[str] = None
+
 # ==========================================
 # 4. MODELO EVOLUÇÃO (FOLHA DE EVOLUÇÃO + PLANEJAMENTO)
 # ==========================================
@@ -113,3 +180,17 @@ class EvolucaoUpdate(BaseModel):
     data: Optional[str] = None
     trabalho_realizado: Optional[str] = None
     proxima_visita: Optional[str] = None
+
+# ==========================================
+# 5. MODELO EXAME (UPLOAD DE EXAMES — radiografias, PDFs, imagens)
+# ==========================================
+# Apenas metadados ficam no DB. O binário do arquivo fica em backend/uploads/exames/
+class Exame(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    paciente_id: int = Field(foreign_key="paciente.id")
+
+    descricao: str                  # ex.: "Radiografia panorâmica"
+    data_exame: Optional[str] = None
+    arquivo_nome: str               # nome original do arquivo
+    arquivo_caminho: str            # caminho relativo no disco
+    tipo_arquivo: str               # mime type, p.ex. "image/png" ou "application/pdf"
