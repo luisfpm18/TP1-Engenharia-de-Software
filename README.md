@@ -35,3 +35,5 @@ Agentes de IA: Claude Code/Gemini.
 5. Folha de Evolução: Como dentista, quero registrar o trabalho realizado em cada consulta para documentar a evolução do tratamento clínico.
 
 6. Planejamento de Tratamento: Como dentista, quero listar os trabalhos a serem feitos na próxima consulta para organizar os materiais e o tempo necessário para o atendimento.
+
+7. Registro de Exames: Como dentista, quero carregar e armazenar exames feitos pelo paciente para centralizar o registro das suas informações clínicas.

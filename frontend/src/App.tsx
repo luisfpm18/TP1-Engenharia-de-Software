@@ -271,14 +271,26 @@ const handleDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   }
 
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target; let cursor = input.selectionStart;
-    const formatado = formatarTelefone(input.value); setTelefone(formatado);
+    const input = e.target;
+    const rawValue = input.value;
+    const cursorPos = input.selectionStart ?? rawValue.length;
+    const digitsBeforeCursor = rawValue.slice(0, cursorPos).replace(/\D/g, '').length;
+    const formatado = formatarTelefone(rawValue);
+    setTelefone(formatado);
     window.requestAnimationFrame(() => {
-      if (input && cursor !== null) {
-        if (formatado[cursor - 1] === '-' || formatado[cursor - 1] === ' ') cursor++;
-        input.setSelectionRange(cursor, cursor);
+      if (!input) return;
+      let digitCount = 0;
+      let newCursor = formatado.length;
+      if (digitsBeforeCursor === 0) {
+        newCursor = 0;
+      } else {
+        for (let i = 0; i < formatado.length; i++) {
+          if (/\d/.test(formatado[i])) digitCount++;
+          if (digitCount === digitsBeforeCursor) { newCursor = i + 1; break; }
+        }
       }
-    })
+      input.setSelectionRange(newCursor, newCursor);
+    });
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
