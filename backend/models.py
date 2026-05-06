@@ -90,3 +90,26 @@ class PagamentoCreate(BaseModel):
     data_pagamento: str
     descricao: str
     forma_pagamento: str
+
+# ==========================================
+# 4. MODELO EVOLUÇÃO (FOLHA DE EVOLUÇÃO + PLANEJAMENTO)
+# ==========================================
+# Cada registro reúne a história 5 (trabalho realizado) e a história 6 (próxima visita).
+# Um paciente pode ter VÁRIOS registros (sem unique=True na FK).
+class Evolucao(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    paciente_id: int = Field(foreign_key="paciente.id")
+
+    data: str  # Data da consulta (DD/MM/AAAA)
+    trabalho_realizado: str
+    proxima_visita: Optional[str] = None  # Planejamento da próxima consulta
+
+class EvolucaoCreate(BaseModel):
+    data: str
+    trabalho_realizado: str
+    proxima_visita: Optional[str] = None
+
+class EvolucaoUpdate(BaseModel):
+    data: Optional[str] = None
+    trabalho_realizado: Optional[str] = None
+    proxima_visita: Optional[str] = None

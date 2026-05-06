@@ -122,12 +122,20 @@ interface Pagamento {
   forma_pagamento: string;
 }
 
+interface Evolucao {
+  id?: number;
+  data: string;
+  trabalho_realizado: string;
+  proxima_visita: string;
+}
+
 // ==========================================
 // 4. COMPONENTE PRINCIPAL
 // ==========================================
 function App() {
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [erro, setErro] = useState("")
+  const [pacienteExpandidoId, setPacienteExpandidoId] = useState<number | null>(null)
 
   // Estados do Formulário Cadastro Paciente
   const [nome, setNome] = useState("")
@@ -157,6 +165,14 @@ function App() {
   const [dataPagamento, setDataPagamento] = useState("")
   const [descricaoPagamento, setDescricaoPagamento] = useState("")
   const [formaPagamento, setFormaPagamento] = useState("")
+
+  // Estados Folha de Evolução (Histórias 5 e 6)
+  const [pacienteEvolucaoAberto, setPacienteEvolucaoAberto] = useState<Paciente | null>(null)
+  const [evolucoes, setEvolucoes] = useState<Evolucao[]>([])
+  const [dataEvolucao, setDataEvolucao] = useState("")
+  const [trabalhoRealizado, setTrabalhoRealizado] = useState("")
+  const [proximaVisita, setProximaVisita] = useState("")
+  const [evolucaoEditandoId, setEvolucaoEditandoId] = useState<number | null>(null)
 
   const buscarPacientes = () => {
     axios.get('http://localhost:8000/pacientes/')
@@ -350,9 +366,170 @@ function App() {
         alert("Pagamento registrado com sucesso!")
         setValorPagamento(""); setDataPagamento(""); setDescricaoPagamento(""); setFormaPagamento("");
         // Atualiza a lista de pagamentos na tela automaticamente
-        abrirFinanceiro(pacienteFinanceiroAberto) 
+        abrirFinanceiro(pacienteFinanceiroAberto)
       })
       .catch(() => alert("Erro ao registrar pagamento."))
+  }
+
+  // ==========================================
+  // Funções da Folha de Evolução (Histórias 5 e 6)
+  // ==========================================
+  const limparFormularioEvolucao = () => {
+    setDataEvolucao(""); setTrabalhoRealizado(""); setProximaVisita("");
+    setEvolucaoEditandoId(null);
+  }
+
+  const abrirEvolucao = (paciente: Paciente) => {
+    setPacienteEvolucaoAberto(paciente)
+    limparFormularioEvolucao()
+    axios.get(`http://localhost:8000/pacientes/${paciente.id}/evolucao`)
+      .then(response => setEvolucoes(response.data))
+      .catch(() => alert("Erro ao carregar a folha de evolução."))
+  }
+
+  const fecharEvolucao = () => {
+    setPacienteEvolucaoAberto(null)
+    limparFormularioEvolucao()
+  }
+
+  const recarregarEvolucoes = (pacienteId: number) => {
+    axios.get(`http://localhost:8000/pacientes/${pacienteId}/evolucao`)
+      .then(response => setEvolucoes(response.data))
+      .catch(() => alert("Erro ao recarregar a folha de evolução."))
+  }
+
+  const salvarEvolucao = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!pacienteEvolucaoAberto) return
+
+    const payload = {
+      data: dataEvolucao,
+      trabalho_realizado: trabalhoRealizado,
+      proxima_visita: proximaVisita
+    }
+
+    if (evolucaoEditandoId !== null) {
+      axios.put(`http://localhost:8000/pacientes/${pacienteEvolucaoAberto.id}/evolucao/${evolucaoEditandoId}`, payload)
+        .then(() => {
+          alert("Registro atualizado com sucesso!")
+          limparFormularioEvolucao()
+          recarregarEvolucoes(pacienteEvolucaoAberto.id)
+        })
+        .catch(() => alert("Erro ao atualizar o registro."))
+    } else {
+      axios.post(`http://localhost:8000/pacientes/${pacienteEvolucaoAberto.id}/evolucao`, payload)
+        .then(() => {
+          alert("Registro adicionado à folha de evolução!")
+          limparFormularioEvolucao()
+          recarregarEvolucoes(pacienteEvolucaoAberto.id)
+        })
+        .catch(() => alert("Erro ao registrar o trabalho realizado."))
+    }
+  }
+
+  const prepararEdicaoEvolucao = (evo: Evolucao) => {
+    setDataEvolucao(evo.data || "")
+    setTrabalhoRealizado(evo.trabalho_realizado || "")
+    setProximaVisita(evo.proxima_visita || "")
+    setEvolucaoEditandoId(evo.id ?? null)
+  }
+
+  const excluirEvolucao = (evolucaoId: number) => {
+    if (!pacienteEvolucaoAberto) return
+    if (!window.confirm("Tem certeza que deseja excluir este registro da folha de evolução?")) return
+
+    axios.delete(`http://localhost:8000/pacientes/${pacienteEvolucaoAberto.id}/evolucao/${evolucaoId}`)
+      .then(() => {
+        recarregarEvolucoes(pacienteEvolucaoAberto.id)
+        if (evolucaoEditandoId === evolucaoId) limparFormularioEvolucao()
+      })
+      .catch(() => alert("Erro ao excluir o registro."))
+  }
+
+  // ==========================================
+  // RENDERIZAÇÃO: TELA FOLHA DE EVOLUÇÃO
+  // ==========================================
+  if (pacienteEvolucaoAberto) {
+    return (
+      <div style={ESTILO_GERAL}>
+        <div style={ESTILO_CONTAINER}>
+          <div style={{ ...ESTILO_CARD, borderTop: '5px solid #ff9800' }}>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '25px', gap: '15px' }}>
+              <h1 style={{ margin: 0, lineHeight: '1.3' }}>Folha de Evolução: <br/><span style={{ color: '#ff9800' }}>{pacienteEvolucaoAberto.nome}</span></h1>
+              <button onClick={fecharEvolucao} style={{ ...ESTILO_BOTAO_BASE, backgroundColor: '#9e9e9e', color: 'white', whiteSpace: 'nowrap' }}>
+                ← Voltar
+              </button>
+            </div>
+
+            {/* FORMULÁRIO DE NOVO REGISTRO (ou edição) */}
+            <div style={{ backgroundColor: '#fff3e0', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+              <h3 style={{ marginTop: 0, color: '#e65100' }}>
+                {evolucaoEditandoId !== null ? "Editar Registro" : "Registrar Trabalho Realizado e Planejamento"}
+              </h3>
+              <form onSubmit={salvarEvolucao} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+
+                <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '250px' }}>
+                  <label style={ESTILO_LABEL}>Data da Consulta</label>
+                  <input type="text" placeholder="DD/MM/AAAA" required value={dataEvolucao} onChange={(e) => setDataEvolucao(formatarData(e.target.value))} style={ESTILO_INPUT_BASE} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={ESTILO_LABEL}>Trabalho Realizado</label>
+                  <textarea rows={3} required placeholder="O que foi feito nesta consulta..." value={trabalhoRealizado} onChange={(e) => setTrabalhoRealizado(e.target.value)} style={{ ...ESTILO_INPUT_BASE, resize: 'vertical' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={ESTILO_LABEL}>Próxima Visita / Planejamento</label>
+                  <textarea rows={3} placeholder="Trabalhos a serem feitos na próxima consulta..." value={proximaVisita} onChange={(e) => setProximaVisita(e.target.value)} style={{ ...ESTILO_INPUT_BASE, resize: 'vertical' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" style={{ ...ESTILO_BOTAO_BASE, flex: 1, backgroundColor: evolucaoEditandoId !== null ? '#2196F3' : '#ff9800', color: 'white' }}>
+                    {evolucaoEditandoId !== null ? "💾 Salvar Alterações" : "➕ Adicionar Registro"}
+                  </button>
+                  {evolucaoEditandoId !== null && (
+                    <button type="button" onClick={limparFormularioEvolucao} style={{ ...ESTILO_BOTAO_BASE, backgroundColor: '#9e9e9e', color: 'white' }}>Cancelar</button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* TABELA DE HISTÓRICO DE EVOLUÇÃO */}
+            <h3 style={{ marginTop: 0 }}>Histórico de Evolução</h3>
+            {evolucoes.length === 0 ? (
+              <p>Nenhum registro de evolução para este paciente ainda.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: 'black' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#eeeeee', borderBottom: '2px solid #ccc' }}>
+                    <th style={{ padding: '10px', width: '13%' }}>Data</th>
+                    <th style={{ padding: '10px', width: '37%' }}>Trabalho Realizado</th>
+                    <th style={{ padding: '10px', width: '37%' }}>Próxima Visita</th>
+                    <th style={{ padding: '10px', width: '13%' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {evolucoes.map(ev => (
+                    <tr key={ev.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '10px', verticalAlign: 'top' }}>{ev.data}</td>
+                      <td style={{ padding: '10px', verticalAlign: 'top', whiteSpace: 'pre-wrap' }}>{ev.trabalho_realizado}</td>
+                      <td style={{ padding: '10px', verticalAlign: 'top', whiteSpace: 'pre-wrap' }}>{ev.proxima_visita || "-"}</td>
+                      <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
+                          <button onClick={() => prepararEdicaoEvolucao(ev)} style={{ ...ESTILO_BOTAO_BASE, padding: '6px 10px', fontSize: '12px', backgroundColor: '#2196F3', color: 'white' }}>Editar</button>
+                          <button onClick={() => ev.id && excluirEvolucao(ev.id)} style={{ ...ESTILO_BOTAO_BASE, padding: '6px 10px', fontSize: '12px', backgroundColor: '#f44336', color: 'white' }}>Excluir</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // ==========================================
@@ -596,27 +773,48 @@ function App() {
           <p>Nenhum paciente cadastrado ainda.</p>
         ) : (
           <ul style={{ listStyleType: 'none', padding: 0 }}>
-            {pacientes.map(paciente => (
-              <li key={paciente.id} style={{ ...ESTILO_CARD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', padding: '15px 20px' }}>
-                <div style={{ fontSize: '15px' }}>
-                  <strong style={{ fontSize: '18px', color: '#673ab7' }}>{paciente.nome}</strong> <br />
-                  <strong>CPF:</strong> {formatarCPF(paciente.cpf)} | 
-                  <strong> DN:</strong> {formatarData(paciente.data_nascimento || "")} | 
-                  <strong> Tel:</strong> {formatarTelefone(paciente.telefone)}
+            {pacientes.map(paciente => {
+              const expandido = pacienteExpandidoId === paciente.id
+              return (
+              <li key={paciente.id} style={{ ...ESTILO_CARD, marginBottom: '10px', padding: '15px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ fontSize: '15px' }}>
+                    <strong style={{ fontSize: '18px', color: '#673ab7' }}>{paciente.nome}</strong> <br />
+                    <strong>CPF:</strong> {formatarCPF(paciente.cpf)} |
+                    <strong> DN:</strong> {formatarData(paciente.data_nascimento || "")} |
+                    <strong> Tel:</strong> {formatarTelefone(paciente.telefone)}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={() => setPacienteExpandidoId(expandido ? null : paciente.id)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#607d8b', color: 'white' }}>
+                      {expandido ? "🔼 Ver menos" : "🔽 Ver mais"}
+                    </button>
+                    <button onClick={() => abrirFicha(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#673ab7', color: 'white' }}>
+                      📝 Ficha Clínica
+                    </button>
+                    <button onClick={() => abrirEvolucao(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#ff9800', color: 'white' }}>
+                      📋 Evolução
+                    </button>
+                    <button onClick={() => abrirFinanceiro(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white' }}>
+                      💰 Financeiro
+                    </button>
+                    <button onClick={() => prepararEdicao(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#2196F3', color: 'white' }}>Editar</button>
+                    <button onClick={() => handleDelete(paciente.id)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#f44336', color: 'white' }}>Excluir</button>
+                  </div>
                 </div>
-                
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => abrirFicha(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#673ab7', color: 'white' }}>
-                    📝 Ficha Clínica
-                  </button>
-                  <button onClick={() => abrirFinanceiro(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#4CAF50', color: 'white' }}>
-                    💰 Financeiro
-                  </button>
-                  <button onClick={() => prepararEdicao(paciente)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#2196F3', color: 'white' }}>Editar</button>
-                  <button onClick={() => handleDelete(paciente.id)} style={{ ...ESTILO_BOTAO_BASE, padding: '10px 15px', backgroundColor: '#f44336', color: 'white' }}>Excluir</button>
-                </div>
+
+                {expandido && (
+                  <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#fafafa', borderRadius: '6px', border: '1px solid #e0e0e0', fontSize: '14px', lineHeight: '1.7' }}>
+                    <strong>Dados pessoais completos:</strong><br />
+                    <strong>RG:</strong> {paciente.rg ? formatarRG(paciente.rg) : '—'}<br />
+                    <strong>Data de Nascimento:</strong> {paciente.data_nascimento ? formatarData(paciente.data_nascimento) : '—'}<br />
+                    <strong>Telefone:</strong> {formatarTelefone(paciente.telefone)}<br />
+                    <strong>Endereço:</strong> {paciente.endereco || '—'}
+                  </div>
+                )}
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </div>

@@ -8,7 +8,7 @@ from database import engine
 from fastapi import HTTPException
 from sqlmodel import Session, select # Importe o Session e o select
 from database import engine
-from models import Paciente, PacienteCreate, PacienteUpdate, FichaClinica, Pagamento, PagamentoCreate # Importe os modelos de dados
+from models import Paciente, PacienteCreate, PacienteUpdate, FichaClinica, Pagamento, PagamentoCreate, Evolucao, EvolucaoCreate, EvolucaoUpdate # Importe os modelos de dados
 from fastapi.middleware.cors import CORSMiddleware #Importa o CORS para conectar o react com o banco de dados  
 from typing import List
 
@@ -72,12 +72,21 @@ def excluir_paciente(paciente_id: int):
     with Session(engine) as session:
         # Busca o paciente no banco pelo ID
         paciente = session.get(Paciente, paciente_id)
-        
+
         # Se o paciente não existir, avisa que deu erro 404
         if not paciente:
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
-        
-        # Se existir, deleta e salva a alteração no banco
+
+        # Apaga primeiro os registros filhos (FKs sem ON DELETE CASCADE no schema).
+        # Sem isso, o Postgres bloqueia a exclusão por integridade referencial.
+        for evolucao in session.exec(select(Evolucao).where(Evolucao.paciente_id == paciente_id)).all():
+            session.delete(evolucao)
+        for pagamento in session.exec(select(Pagamento).where(Pagamento.paciente_id == paciente_id)).all():
+            session.delete(pagamento)
+        ficha = session.exec(select(FichaClinica).where(FichaClinica.paciente_id == paciente_id)).first()
+        if ficha:
+            session.delete(ficha)
+
         session.delete(paciente)
         session.commit()
         return {"message": "Paciente excluído com sucesso"}
@@ -215,3 +224,69 @@ def listar_pagamentos(paciente_id: int):
         # Pega todos os pagamentos cujo paciente_id bata com a URL
         pagamentos = session.exec(select(Pagamento).where(Pagamento.paciente_id == paciente_id)).all()
         return pagamentos
+
+#===================================================
+# ROTAS PARA A FOLHA DE EVOLUÇÃO (HISTÓRIAS 5 E 6)
+# Cada registro contém o que foi feito na consulta + o planejamento da próxima visita
+#===================================================
+
+# Rota para REGISTRAR um novo trabalho realizado (com planejamento opcional da próxima visita)
+@app.post("/pacientes/{paciente_id}/evolucao", response_model=Evolucao)
+def registrar_evolucao(paciente_id: int, evolucao_in: EvolucaoCreate):
+    with Session(engine) as session:
+        paciente = session.get(Paciente, paciente_id)
+        if not paciente:
+            raise HTTPException(status_code=404, detail="Paciente não encontrado.")
+
+        nova_evolucao = Evolucao(
+            paciente_id=paciente_id,
+            data=evolucao_in.data,
+            trabalho_realizado=evolucao_in.trabalho_realizado,
+            proxima_visita=evolucao_in.proxima_visita,
+        )
+
+        session.add(nova_evolucao)
+        session.commit()
+        session.refresh(nova_evolucao)
+        return nova_evolucao
+
+# Rota para LISTAR a folha de evolução do paciente (ordenada do mais antigo para o mais novo)
+@app.get("/pacientes/{paciente_id}/evolucao", response_model=List[Evolucao])
+def listar_evolucoes(paciente_id: int):
+    with Session(engine) as session:
+        evolucoes = session.exec(
+            select(Evolucao).where(Evolucao.paciente_id == paciente_id).order_by(Evolucao.id)
+        ).all()
+        return evolucoes
+
+# Rota para EDITAR um registro da folha de evolução
+@app.put("/pacientes/{paciente_id}/evolucao/{evolucao_id}", response_model=Evolucao)
+def atualizar_evolucao(paciente_id: int, evolucao_id: int, evolucao_update: EvolucaoUpdate):
+    with Session(engine) as session:
+        evolucao = session.get(Evolucao, evolucao_id)
+        if not evolucao or evolucao.paciente_id != paciente_id:
+            raise HTTPException(status_code=404, detail="Registro de evolução não encontrado.")
+
+        if evolucao_update.data is not None:
+            evolucao.data = evolucao_update.data
+        if evolucao_update.trabalho_realizado is not None:
+            evolucao.trabalho_realizado = evolucao_update.trabalho_realizado
+        if evolucao_update.proxima_visita is not None:
+            evolucao.proxima_visita = evolucao_update.proxima_visita
+
+        session.add(evolucao)
+        session.commit()
+        session.refresh(evolucao)
+        return evolucao
+
+# Rota para EXCLUIR um registro da folha de evolução
+@app.delete("/pacientes/{paciente_id}/evolucao/{evolucao_id}")
+def excluir_evolucao(paciente_id: int, evolucao_id: int):
+    with Session(engine) as session:
+        evolucao = session.get(Evolucao, evolucao_id)
+        if not evolucao or evolucao.paciente_id != paciente_id:
+            raise HTTPException(status_code=404, detail="Registro de evolução não encontrado.")
+
+        session.delete(evolucao)
+        session.commit()
+        return {"message": "Registro de evolução excluído com sucesso"}
