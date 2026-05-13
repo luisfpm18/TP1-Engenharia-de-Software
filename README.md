@@ -198,7 +198,7 @@ sequenceDiagram
     FE       -->> Dentista : Lista atualizada
 
     Dentista ->> FE  : Clica "👁 Ver" em um exame
-    Note over FE,Dentista : FE renderiza link &lt;a href target="_blank"&gt;;\nbrowser abre nova aba diretamente (sem Axios)
+    Note over FE,Dentista : FE apenas renderiza o link href. O browser abre a URL em nova aba diretamente, sem Axios.
     Dentista ->> API : GET /pacientes/{id}/exames/{exame_id}/arquivo
     API      ->> DB  : SELECT arquivo_caminho, tipo_arquivo WHERE id = {exame_id}
     DB       -->> API: Metadados do exame
