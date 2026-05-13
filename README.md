@@ -192,10 +192,14 @@ sequenceDiagram
     DB       -->> API: Registro salvo com id gerado
     API      -->> FE : JSON do novo exame (200 OK)
     FE       ->> API : GET /pacientes/{id}/exames  ── recarrega lista
+    API      ->> DB  : SELECT * FROM exame WHERE paciente_id = {id}
+    DB       -->> API: Lista de metadados atualizada
+    API      -->> FE : JSON com lista atualizada
     FE       -->> Dentista : Lista atualizada
 
     Dentista ->> FE  : Clica "👁 Ver" em um exame
-    FE       ->> API : GET /pacientes/{id}/exames/{exame_id}/arquivo
+    Note over FE,Dentista : FE renderiza link &lt;a href target="_blank"&gt;;\nbrowser abre nova aba diretamente (sem Axios)
+    Dentista ->> API : GET /pacientes/{id}/exames/{exame_id}/arquivo
     API      ->> DB  : SELECT arquivo_caminho, tipo_arquivo WHERE id = {exame_id}
     DB       -->> API: Metadados do exame
     API      ->> FS  : Lê bytes do arquivo
