@@ -55,3 +55,4 @@ def client_fixture(tmp_path, monkeypatch):
     yield client
 
     SQLModel.metadata.drop_all(engine)
+    engine.dispose()  # fecha conexões SQLite; silencia ResourceWarning do GC

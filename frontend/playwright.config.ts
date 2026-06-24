@@ -26,6 +26,13 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    // slowMo desacelera CADA ação do navegador (ms). Por padrão 0 (rápido).
+    // Para a apresentação: rode `SLOWMO=800 npx playwright test --headed`
+    // (o robozinho fica visível). `--slow-mo` NÃO é flag do `playwright test`;
+    // o atraso precisa vir daqui, das launchOptions.
+    launchOptions: {
+      slowMo: Number(process.env.SLOWMO) || 0,
+    },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

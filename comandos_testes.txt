@@ -1,0 +1,8 @@
+| Quando | Pasta | Comando |
+|---|---|---|
+| Integração | `backend/` | `pytest -v` |
+| Cobertura | `backend/` | `pytest --cov=main --cov=models --cov-report=term-missing` |
+| Cobertura (HTML) | `backend/` | `pytest --cov=main --cov=models --cov-report=html` → abrir `htmlcov/index.html` |
+| E2E (robozinho) | `frontend/` | `SLOWMO=800 npx playwright test --headed` |
+| E2E (rápido) | `frontend/` | `npm run test:e2e` |
+| E2E (painel) | `frontend/` | `npx playwright test --ui` |
