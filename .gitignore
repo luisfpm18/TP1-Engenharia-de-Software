@@ -6,6 +6,11 @@ node_modules/
 .claude/
 backend/uploads/
 
+# Artefatos de cobertura do pytest-cov (regenerados a cada execução)
+.coverage
+backend/.coverage
+backend/htmlcov/
+
 
 README copy.md
 explicacao_clodigos.md
