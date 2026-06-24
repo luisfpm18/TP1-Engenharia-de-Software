@@ -54,12 +54,14 @@ test.describe('E2E #2 - Fluxo de Exames', () => {
     await expect(page.getByText('Tomografia do siso')).toBeVisible();
     await expect(page.getByText('exame_endodontico.pdf')).toBeVisible();
 
-    // Visualiza o arquivo em nova aba
-    const [popup] = await Promise.all([
-      page.waitForEvent('popup'),
-      page.getByRole('link', { name: /Ver/i }).click(),
-    ]);
-
-    await expect(popup).toHaveURL(/\/arquivo/);
+    // Valida a "visualização" do arquivo de forma robusta (funciona em headless e headed):
+    // o link "Ver" aponta para a rota de arquivo do exame...
+    const verLink = page.getByRole('link', { name: /Ver/i });
+    await expect(verLink).toHaveAttribute('href', /\/exames\/\d+\/arquivo$/);
+    // ...e o backend serve o arquivo inline (HTTP 200 + Content-Disposition: inline).
+    const href = await verLink.getAttribute('href');
+    const arquivoResp = await page.request.get(href!);
+    expect(arquivoResp.status()).toBe(200);
+    expect(arquivoResp.headers()['content-disposition']).toContain('inline');
   });
 });

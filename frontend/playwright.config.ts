@@ -16,6 +16,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
+  // 1 worker => execução sequencial. Os E2E compartilham o mesmo backend/Postgres;
+  // rodar em paralelo deixava os testes instáveis (timeouts sob carga). Sequencial é
+  // estável e previsível, o que é o que queremos para a apresentação.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: 'list',
