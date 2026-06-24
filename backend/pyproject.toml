@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+# Coloca a pasta backend/ no sys.path para os testes conseguirem "import main"/"import models".
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+# Mede a cobertura apenas do código de produção (rotas e modelos).
+source = ["main", "models"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true

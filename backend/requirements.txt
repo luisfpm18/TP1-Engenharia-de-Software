@@ -4,3 +4,8 @@ sqlmodel
 psycopg2-binary
 python-dotenv
 python-multipart
+
+# Testes (TP2)
+pytest
+pytest-cov
+httpx
